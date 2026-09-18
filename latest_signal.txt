@@ -1,4 +1,4 @@
-=== FX Signal Scan: 2026-09-18T22:11:42Z UTC ===
+=== FX Signal Scan: 2026-09-18T23:11:40Z UTC ===
 === 全26銘柄中 26銘柄 分析成功 / 0銘柄 エラー ===
 EURUSD[up]: 5点スコア0/5(buy)
 GBPUSD[up]: 5点スコア1/5(buy)
