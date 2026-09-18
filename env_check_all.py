@@ -40,10 +40,27 @@ CODES = {
     "NASDAQ100": dki.INSTRUMENT_IDX_AMERICA_E_NQ_100,
 }
 
+# Yahoo Financeフォールバック用ティッカー(Dukascopyへの接続がネットワークポリシー等で
+# ブロックされている実行環境向け。例: クラウドルーティンのサンドボックスがfreeserv.dukascopy.com
+# への接続を拒否するケースがあったため)
+YF_TICKERS = {
+    "EURUSD": "EURUSD=X", "GBPUSD": "GBPUSD=X", "USDCHF": "USDCHF=X",
+    "AUDUSD": "AUDUSD=X", "NZDUSD": "NZDUSD=X", "EURGBP": "EURGBP=X",
+    "EURAUD": "EURAUD=X", "EURNZD": "EURNZD=X", "EURCHF": "EURCHF=X",
+    "GBPAUD": "GBPAUD=X", "GBPNZD": "GBPNZD=X", "GBPCHF": "GBPCHF=X",
+    "AUDNZD": "AUDNZD=X", "AUDCHF": "AUDCHF=X", "NZDCHF": "NZDCHF=X",
+    "USDCAD": "USDCAD=X", "EURCAD": "EURCAD=X", "GBPCAD": "GBPCAD=X",
+    "AUDCAD": "AUDCAD=X", "NZDCAD": "NZDCAD=X", "CADCHF": "CADCHF=X",
+    "GOLD": "GC=F", "SILVER": "SI=F", "WTI原油": "CL=F",
+    "日経225": "^N225", "NASDAQ100": "^NDX",
+}
+
+DUKA_TO_YF_INTERVAL = {"1HOUR": "1h", "1DAY": "1d"}
+
 DAYS = 450
 
 
-def fetch(code, interval, days=DAYS):
+def _fetch_dukascopy(code, interval, days):
     end = datetime.datetime.now()
     start = end - datetime.timedelta(days=days)
     d = dukascopy_python.fetch(code, interval, dukascopy_python.OFFER_SIDE_BID, start, end)
@@ -56,10 +73,41 @@ def fetch(code, interval, days=DAYS):
     return d[["Open", "High", "Low", "Close", "Volume"]].dropna()
 
 
-def check(name, code):
+def _fetch_yfinance(name, interval, days):
+    import yfinance as yf
+    ticker = YF_TICKERS[name]
+    yf_interval = DUKA_TO_YF_INTERVAL[str(interval)]
+    yf_days = min(days, 729) if yf_interval == "1h" else days  # yfinanceの1h上限は730日
+    d = yf.download(ticker, period=f"{yf_days}d", interval=yf_interval, progress=False)
+    if isinstance(d.columns, pd.MultiIndex):
+        d.columns = d.columns.get_level_values(0)
+    d = d.rename(columns={c: c for c in ["Open", "High", "Low", "Close", "Volume"]})
+    idx = pd.to_datetime(d.index)
+    if idx.tz is not None:
+        idx = idx.tz_localize(None)
+    d.index = pd.DatetimeIndex(idx.values.astype("datetime64[ns]"))
+    d.index.name = None
+    if "Volume" not in d.columns:
+        d["Volume"] = 0
+    return d[["Open", "High", "Low", "Close", "Volume"]].dropna()
+
+
+def fetch(name, interval, days=DAYS):
+    """まずDukascopyを試し、失敗したら(ネットワーク遮断等)Yahoo Financeにフォールバックする。"""
+    code = CODES[name]
     try:
-        h1 = fetch(code, dukascopy_python.INTERVAL_HOUR_1)
-        daily = fetch(code, dukascopy_python.INTERVAL_DAY_1)
+        d = _fetch_dukascopy(code, interval, days)
+        if len(d) > 0:
+            return d
+        raise ValueError("Dukascopy returned empty data")
+    except Exception:
+        return _fetch_yfinance(name, interval, days)
+
+
+def check(name, code=None):
+    try:
+        h1 = fetch(name, dukascopy_python.INTERVAL_HOUR_1)
+        daily = fetch(name, dukascopy_python.INTERVAL_DAY_1)
         if len(h1) < 250 or len(daily) < 60:
             return {"instrument": name, "error": "データ不足"}
 

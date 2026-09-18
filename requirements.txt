@@ -1,3 +1,4 @@
 dukascopy-python
 pandas
 numpy
+yfinance
