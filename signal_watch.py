@@ -1,12 +1,12 @@
 """
 26銘柄のシグナル状態を記録し、前回チェックとの差分(新規発火)を検出する。
-mode=summary: 常に現在の全体サマリーを出力(1時間毎の全体通知用)
+mode=summary: 常に全26銘柄の詳細(トレンド・5点スコア・ARMED・フラクタルNL・過熱・乖離埋め)を出力。
+              エラーが出た銘柄も隠さず明示する(黙って握りつぶさない)。
 mode=diff   : 前回保存した状態と比較し、新規に発火したものだけ出力(KAIRIポイントの即時通知用)
 """
 import sys
 import json
 import os
-import pandas as pd
 from env_check_all import CODES, check
 
 STATE_PATH = "signal_state.json"
@@ -25,10 +25,13 @@ def save_state(state):
 
 
 def current_signals():
+    """戻り値: (rows, errors) — rows=正常取得できた銘柄の状態辞書、errors=失敗した銘柄名→エラー文"""
     rows = {}
+    errors = {}
     for name, code in CODES.items():
         r = check(name, code)
         if "error" in r:
+            errors[name] = r["error"]
             continue
         rows[name] = {
             "armed": r.get("収束拡散状態") == "ARMED",
@@ -44,7 +47,7 @@ def current_signals():
             "gapfill_valid": bool(r.get("乖離埋め妥当")),
             "gapfill_dir": r.get("乖離埋め方向"),
         }
-    return rows
+    return rows, errors
 
 
 def _five_score_num(s):
@@ -57,26 +60,32 @@ def _five_score_num(s):
         return None
 
 
-def summarize_all(cur):
-    lines = []
-    for name, s in cur.items():
-        flags = []
-        if s["armed"]:
-            flags.append("ARMED")
-        if s["fractal_broken"]:
-            flags.append(f"フラクタルNL発火({s['fractal_pattern']},RR={s['fractal_rr']},{s['fractal_quality']})")
-        if s["gapfill_valid"]:
-            flags.append(f"乖離埋め候補({s['gapfill_dir']})")
-        elif s["overheat"]:
-            flags.append("過熱警告")
-        five_n = _five_score_num(s.get("five_score"))
-        if five_n is not None and five_n >= 4:
-            flags.append(f"5点根拠{s['five_score']}({s['five_dir']})")
-        if flags:
-            lines.append(f"{name}: {'/'.join(flags)}")
-    if not lines:
-        return "現在アクティブなシグナルなし"
-    return " | ".join(lines)
+def _instrument_line(name, s):
+    flags = []
+    if s["armed"]:
+        flags.append("ARMED")
+    if s["fractal_broken"]:
+        flags.append(f"フラクタルNL発火({s['fractal_pattern']},RR={s['fractal_rr']},{s['fractal_quality']})")
+    if s["gapfill_valid"]:
+        flags.append(f"乖離埋め候補({s['gapfill_dir']})")
+    elif s["overheat"]:
+        flags.append("過熱警告")
+    five_n = _five_score_num(s.get("five_score"))
+    if five_n is not None:
+        flags.append(f"5点スコア{s['five_score']}({s['five_dir']})")
+    flags_str = "/".join(flags) if flags else "平常"
+    return f"{name}[{s.get('trend')}]: {flags_str}"
+
+
+def summarize_all(rows, errors):
+    """毎回、全銘柄の詳細を必ず出力する(フィルタして省略しない)。エラーも明示する。"""
+    lines = [f"=== 全{len(CODES)}銘柄中 {len(rows)}銘柄 分析成功 / {len(errors)}銘柄 エラー ==="]
+    for name in CODES:
+        if name in rows:
+            lines.append(_instrument_line(name, rows[name]))
+        elif name in errors:
+            lines.append(f"{name}: [エラー] {errors[name]}")
+    return "\n".join(lines)
 
 
 def diff_new_triggers(prev, cur):
@@ -100,12 +109,14 @@ def diff_new_triggers(prev, cur):
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "summary"
     prev = load_state()
-    cur = current_signals()
+    cur, errors = current_signals()
 
     if mode == "summary":
-        print(summarize_all(cur))
+        print(summarize_all(cur, errors))
     else:
         events = diff_new_triggers(prev, cur)
+        if errors:
+            events.append(f"[警告] {len(errors)}銘柄でエラー: {', '.join(errors.keys())}")
         if events:
             print("NEW_SIGNALS:\n" + "\n".join(events))
         else:
