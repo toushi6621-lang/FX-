@@ -1,0 +1,44 @@
+name: FX Signal Scan
+
+# GitHub Actionsのrunnerは一般インターネットに自由に出られるため、
+# ここで26銘柄のデータ取得(Dukascopy/Yahoo Finance)を行い、結果をリポジトリに
+# コミットする。Claudeのクラウドルーティン側はネットワークegressが制限されており
+# 金融データAPIに直接アクセスできないため、コミットされた latest_signal.txt を
+# 読むだけの役割にする。
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # 毎時0分(UTC) — Claudeルーティン(毎時7分)より前に完了させる
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -q -r requirements.txt
+
+      - name: Run signal scan
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          {
+            echo "=== FX Signal Scan: $(date -u +%Y-%m-%dT%H:%M:%SZ) UTC ==="
+            python signal_watch.py summary
+          } > latest_signal.txt
+
+      - name: Commit and push result
+        run: |
+          git config user.name "fx-signal-bot"
+          git config user.email "actions@github.com"
+          git add latest_signal.txt signal_state.json
+          git diff --cached --quiet || git commit -m "Update signal scan $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push
