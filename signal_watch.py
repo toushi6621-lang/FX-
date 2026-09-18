@@ -41,6 +41,8 @@ def current_signals():
             "close": r.get("終値"),
             "five_score": r.get("5点スコア"),
             "five_dir": r.get("5点方向"),
+            "gapfill_valid": bool(r.get("乖離埋め妥当")),
+            "gapfill_dir": r.get("乖離埋め方向"),
         }
     return rows
 
@@ -63,7 +65,9 @@ def summarize_all(cur):
             flags.append("ARMED")
         if s["fractal_broken"]:
             flags.append(f"フラクタルNL発火({s['fractal_pattern']},RR={s['fractal_rr']},{s['fractal_quality']})")
-        if s["overheat"]:
+        if s["gapfill_valid"]:
+            flags.append(f"乖離埋め候補({s['gapfill_dir']})")
+        elif s["overheat"]:
             flags.append("過熱警告")
         five_n = _five_score_num(s.get("five_score"))
         if five_n is not None and five_n >= 4:
@@ -88,6 +92,8 @@ def diff_new_triggers(prev, cur):
         prev_five = _five_score_num(p.get("five_score"))
         if cur_five is not None and cur_five >= 4 and (prev_five is None or prev_five < 4):
             new_events.append(f"{name}: 5点根拠が{s['five_score']}に到達({s['five_dir']}) — 押し目買い/戻り売りの高確度シグナル")
+        if s["gapfill_valid"] and not p.get("gapfill_valid", False):
+            new_events.append(f"{name}: 乖離埋めトレード新規候補({s['gapfill_dir']}) — MA乖離埋めNG4パターンをクリア")
     return new_events
 
 

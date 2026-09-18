@@ -8,7 +8,8 @@ import pandas as pd
 import dukascopy_python
 from dukascopy_python import instruments as dki
 from engine import (build_dataset, compute_hit_arrays, compute_ma_reversal_triggers,
-                     compute_ma_fan_triggers, detect_fractal_neckline, check_five_points)
+                     compute_ma_fan_triggers, detect_fractal_neckline, check_five_points,
+                     check_gap_fill_trade)
 
 CODES = {
     "EURUSD": dki.INSTRUMENT_FX_MAJORS_EUR_USD,
@@ -108,6 +109,7 @@ def check(name, code):
 
         fn = detect_fractal_neckline(ds)
         fp = check_five_points(ds)
+        gf = check_gap_fill_trade(ds)
 
         return {
             "instrument": name,
@@ -126,6 +128,9 @@ def check(name, code):
             "5点スコア": f"{fp.get('score')}/5" if fp.get("score") is not None else None,
             "5点方向": fp.get("direction"),
             "5点詳細": fp.get("detail"),
+            "乖離埋め妥当": gf.get("valid", False),
+            "乖離埋め方向": gf.get("direction"),
+            "乖離埋めNG理由": gf.get("ng_patterns"),
             "終値": round(float(close), 5),
         }
     except Exception as e:

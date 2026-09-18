@@ -865,3 +865,69 @@ def check_five_points(ds, direction=None, tol_pct=0.0015, target_atr_mult=8.0):
         },
         "blocking_daily_levels": blocking,
     }
+
+
+def check_gap_fill_trade(ds, direction=None, min_daily_dist_atr=3.0, min_4h80_dist_atr=2.0,
+                          target_atr_mult=6.0, wave_lookback=15, max_wave_atr=3.0):
+    """
+    「日足MAまでの乖離埋めトレードNGパターン4選」(X投稿 status 2050830092549722127)による
+    MA乖離埋め(平均回帰)トレードの妥当性判定。過熱警告が出た時に「本当にリバウンドを狙えるか」を判定する。
+
+    direction未指定なら現在の乖離方向から自動判定(価格が両MAより上=sell、下=buy)。
+    ①②日足MA・4H-EMA80までの距離(ATR倍数)が十分あるか
+    ③日足レベルの強いライン(節目)がターゲットまでの間にないか
+    ④直近の値動き(第1波)がすでに大きく伸びていないか
+    """
+    daily, h4 = ds["daily"], ds["h4"]
+    close = float(h4["Close"].iloc[-1])
+    d_ema20 = float(daily["ema20"].iloc[-1])
+    ema80_4h = float(h4["ema80"].iloc[-1])
+    atr14_h4 = float(h4["atr14"].iloc[-1])
+    if atr14_h4 <= 0 or np.isnan(atr14_h4):
+        return {"valid": False, "direction": None, "reason": "ATR計算不可"}
+
+    if direction is None:
+        if close > d_ema20 and close > ema80_4h:
+            direction = "sell"
+        elif close < d_ema20 and close < ema80_4h:
+            direction = "buy"
+        else:
+            return {"valid": False, "direction": None, "reason": "MAが入り組んでおり乖離方向が不明瞭"}
+
+    dist_daily = abs(close - d_ema20)
+    dist_4h80 = abs(close - ema80_4h)
+    cond_daily_room = dist_daily >= min_daily_dist_atr * atr14_h4
+    cond_4h80_room = dist_4h80 >= min_4h80_dist_atr * atr14_h4
+
+    d_levels_map = compute_daily_levels(ds)
+    last_daily_t = daily.index[-1]
+    d_levels = d_levels_map.get(last_daily_t, [])
+    target_dist = atr14_h4 * target_atr_mult
+    if direction == "sell":
+        target_price = close - target_dist
+        blocking = [round(float(lv), 5) for lv in d_levels if target_price <= lv < close]
+    else:
+        target_price = close + target_dist
+        blocking = [round(float(lv), 5) for lv in d_levels if close < lv <= target_price]
+    cond_no_daily_line = len(blocking) == 0
+
+    recent_close = h4["Close"].iloc[-wave_lookback:]
+    wave_size = float(recent_close.max() - close) if direction == "sell" else float(close - recent_close.min())
+    cond_not_extended = wave_size <= max_wave_atr * atr14_h4
+
+    ng_patterns = []
+    if not cond_daily_room:
+        ng_patterns.append("①日足MAまでの距離不足")
+    if not cond_4h80_room:
+        ng_patterns.append("②4H-EMA80までの距離不足")
+    if not cond_no_daily_line:
+        ng_patterns.append("③日足レベルの強いラインあり")
+    if not cond_not_extended:
+        ng_patterns.append("④第1波がすでに大幅に伸びている")
+
+    return {
+        "valid": len(ng_patterns) == 0, "direction": direction,
+        "dist_daily_atr": round(dist_daily / atr14_h4, 2), "dist_4h80_atr": round(dist_4h80 / atr14_h4, 2),
+        "wave_size_atr": round(wave_size / atr14_h4, 2),
+        "ng_patterns": ng_patterns, "blocking_daily_levels": blocking,
+    }
