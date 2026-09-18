@@ -35,6 +35,7 @@ def current_signals():
             "fractal_broken": bool(r.get("フラクタルNL発火")),
             "fractal_pattern": r.get("フラクタルNL"),
             "fractal_rr": r.get("フラクタルNL_RR"),
+            "fractal_quality": r.get("フラクタルNL_型"),
             "overheat": bool(r.get("過熱警告(NG)")),
             "trend": r.get("Step1_日足trend"),
             "close": r.get("終値"),
@@ -49,7 +50,7 @@ def summarize_all(cur):
         if s["armed"]:
             flags.append("ARMED")
         if s["fractal_broken"]:
-            flags.append(f"フラクタルNL発火({s['fractal_pattern']},RR={s['fractal_rr']})")
+            flags.append(f"フラクタルNL発火({s['fractal_pattern']},RR={s['fractal_rr']},{s['fractal_quality']})")
         if s["overheat"]:
             flags.append("過熱警告")
         if flags:
@@ -67,7 +68,7 @@ def diff_new_triggers(prev, cur):
         if s["armed"] and not p.get("armed", False):
             new_events.append(f"{name}: 新規ARMED(収束完了・拡散待ち)")
         if s["fractal_broken"] and not p.get("fractal_broken", False):
-            new_events.append(f"{name}: フラクタルNL新規発火 {s['fractal_pattern']} RR={s['fractal_rr']}")
+            new_events.append(f"{name}: フラクタルNL新規発火 {s['fractal_pattern']} RR={s['fractal_rr']} {s['fractal_quality']}")
     return new_events
 
 

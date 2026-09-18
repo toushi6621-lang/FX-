@@ -121,6 +121,7 @@ def check(name, code):
             "フラクタルNL": fn.get("pattern", "none"),
             "フラクタルNL発火": fn.get("broken", None),
             "フラクタルNL_RR": fn.get("est_RR", None),
+            "フラクタルNL_型": fn.get("pattern_quality", None),
             "終値": round(float(close), 5),
         }
     except Exception as e:

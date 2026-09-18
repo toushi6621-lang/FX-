@@ -687,6 +687,17 @@ def detect_fractal_neckline(ds, upper_tol_pct=0.002, lower_k=2, lookback_bars=60
         recent_low4 = lows4[lows4.index < last_h_t]
         upper_neckline = recent_low4.iloc[-1] if len(recent_low4) else None
 
+        # 三尊/ダブルトップの「型」判定(X投稿 status 2056267605250589170系):
+        # 右肩の押し安値(L(n-1)=upper_neckline)が、その前の押し安値(L(n-2))を
+        # 既に割っているか(=タイプ②/優位性高)、まだ割っていないか(=タイプ①/優位性低)
+        pattern_quality = None
+        if upper_neckline is not None:
+            earlier_low4 = lows4[lows4.index < recent_low4.index[-1]] if len(recent_low4) else pd.Series(dtype=float)
+            if len(earlier_low4):
+                prior_pullback_low = earlier_low4.iloc[-1]
+                pattern_quality = "②高優位性(押し安値を既に割っている)" if upper_neckline < prior_pullback_low \
+                    else "①低優位性(押し安値をまだ割っていない)"
+
         if is_topping and upper_neckline is not None:
             h1_seg = h1[h1.index >= last_h_t - pd.Timedelta(hours=lookback_bars)]
             if len(h1_seg) >= 10:
@@ -709,6 +720,7 @@ def detect_fractal_neckline(ds, upper_tol_pct=0.002, lower_k=2, lookback_bars=60
                             "mini_neckline(trigger)": float(mini_neckline), "mini_swing_high(stop側)": float(mini_highs.iloc[-1]),
                             "current_price": float(cur_price), "broken": bool(broken),
                             "est_RR": round(float(rr), 2) if not np.isnan(rr) else None,
+                            "pattern_quality": pattern_quality,
                         }
                         valid_rr = (not np.isnan(rr)) and rr > 0
                         if broken and valid_rr:
@@ -723,6 +735,14 @@ def detect_fractal_neckline(ds, upper_tol_pct=0.002, lower_k=2, lookback_bars=60
         is_bottoming = last_l >= prev_l * (1 - upper_tol_pct * 2)
         recent_high4 = highs4[highs4.index < last_l_t]
         upper_neckline = recent_high4.iloc[-1] if len(recent_high4) else None
+
+        pattern_quality = None
+        if upper_neckline is not None:
+            earlier_high4 = highs4[highs4.index < recent_high4.index[-1]] if len(recent_high4) else pd.Series(dtype=float)
+            if len(earlier_high4):
+                prior_rally_high = earlier_high4.iloc[-1]
+                pattern_quality = "②高優位性(戻り高値を既に超えている)" if upper_neckline > prior_rally_high \
+                    else "①低優位性(戻り高値をまだ超えていない)"
 
         if is_bottoming and upper_neckline is not None:
             h1_seg = h1[h1.index >= last_l_t - pd.Timedelta(hours=lookback_bars)]
@@ -746,6 +766,7 @@ def detect_fractal_neckline(ds, upper_tol_pct=0.002, lower_k=2, lookback_bars=60
                             "mini_neckline(trigger)": float(mini_neckline), "mini_swing_low(stop側)": float(mini_lows.iloc[-1]),
                             "current_price": float(cur_price), "broken": bool(broken),
                             "est_RR": round(float(rr), 2) if not np.isnan(rr) else None,
+                            "pattern_quality": pattern_quality,
                         }
                         valid_rr = (not np.isnan(rr)) and rr > 0
                         if broken and valid_rr:
