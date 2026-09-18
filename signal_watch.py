@@ -39,8 +39,20 @@ def current_signals():
             "overheat": bool(r.get("過熱警告(NG)")),
             "trend": r.get("Step1_日足trend"),
             "close": r.get("終値"),
+            "five_score": r.get("5点スコア"),
+            "five_dir": r.get("5点方向"),
         }
     return rows
+
+
+def _five_score_num(s):
+    """'4/5' -> 4 のように数値部分だけ取り出す"""
+    if not s:
+        return None
+    try:
+        return int(str(s).split("/")[0])
+    except (ValueError, IndexError):
+        return None
 
 
 def summarize_all(cur):
@@ -53,6 +65,9 @@ def summarize_all(cur):
             flags.append(f"フラクタルNL発火({s['fractal_pattern']},RR={s['fractal_rr']},{s['fractal_quality']})")
         if s["overheat"]:
             flags.append("過熱警告")
+        five_n = _five_score_num(s.get("five_score"))
+        if five_n is not None and five_n >= 4:
+            flags.append(f"5点根拠{s['five_score']}({s['five_dir']})")
         if flags:
             lines.append(f"{name}: {'/'.join(flags)}")
     if not lines:
@@ -69,6 +84,10 @@ def diff_new_triggers(prev, cur):
             new_events.append(f"{name}: 新規ARMED(収束完了・拡散待ち)")
         if s["fractal_broken"] and not p.get("fractal_broken", False):
             new_events.append(f"{name}: フラクタルNL新規発火 {s['fractal_pattern']} RR={s['fractal_rr']} {s['fractal_quality']}")
+        cur_five = _five_score_num(s.get("five_score"))
+        prev_five = _five_score_num(p.get("five_score"))
+        if cur_five is not None and cur_five >= 4 and (prev_five is None or prev_five < 4):
+            new_events.append(f"{name}: 5点根拠が{s['five_score']}に到達({s['five_dir']}) — 押し目買い/戻り売りの高確度シグナル")
     return new_events
 
 

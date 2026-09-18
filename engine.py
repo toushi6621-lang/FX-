@@ -775,3 +775,93 @@ def detect_fractal_neckline(ds, upper_tol_pct=0.002, lower_k=2, lookback_bars=60
                             result = buy_result
 
     return result
+
+
+_DAILY_LEVELS_CACHE = {}
+
+
+def compute_daily_levels(ds, tol_pct=0.003, lookback=100, min_touches=2):
+    """日足レベルの水平線(抵抗勢力の把握用)。horizontal_levelsを日足に適用するだけ。"""
+    key = (ds["name"], tol_pct, lookback, min_touches)
+    if key not in _DAILY_LEVELS_CACHE:
+        _DAILY_LEVELS_CACHE[key] = horizontal_levels(ds["daily"], k=3, lookback=lookback,
+                                                       tol_pct=tol_pct, min_touches=min_touches)
+    return _DAILY_LEVELS_CACHE[key]
+
+
+def check_five_points(ds, direction=None, tol_pct=0.0015, target_atr_mult=8.0):
+    """
+    「負けにくいエントリー根拠5選」(X投稿 status 2093185466938130897)を現状の市場にそのまま適用する。
+    ①4時間足安値切り上げ(高値切り下げ)ポイント内での1時間足のトレンド転換
+    ②4時間足MAに対する1時間足MAの収束→拡散ポイント
+    ③直近安値(高値)が水平ラインに支えられている
+    ④直近安値(高値)が4時間足MAに支えられている
+    ⑤近くに(日足レベルの)抵抗勢力がいない
+    """
+    daily, h4, h1 = ds["daily"], ds["h4"], ds["h1"]
+    trend = daily["trend"].iloc[-1]
+    if direction is None:
+        if trend == "up":
+            direction = "buy"
+        elif trend == "down":
+            direction = "sell"
+        else:
+            return {"score": 0, "max": 5, "direction": None, "detail": {}, "note": "日足トレンドがflatのため判定不可"}
+
+    close = float(h4["Close"].iloc[-1])
+    atr14_h4 = float(h4["atr14"].iloc[-1])
+
+    # ①4H高安値の切り上げ/切り下げ構造 + 1Hの直近での転換(1HMAが4HMAに対し正しい側へ動き出しているか)
+    is_high4, is_low4 = swing_points(h4, k=3)
+    swings4 = h4.loc[is_low4, "Low"] if direction == "buy" else h4.loc[is_high4, "High"]
+    cond1_structure = False
+    if len(swings4) >= 2:
+        cond1_structure = (swings4.iloc[-1] > swings4.iloc[-2]) if direction == "buy" \
+            else (swings4.iloc[-1] < swings4.iloc[-2])
+
+    dist_arr = h1["ma_dist_pct"].to_numpy()
+    recent_dist = dist_arr[-5:]
+    valid_recent = recent_dist[~np.isnan(recent_dist)]
+    cond1_1h_turn = False
+    if len(valid_recent) >= 2:
+        cond1_1h_turn = bool(valid_recent[-1] > 0 and valid_recent[-1] > valid_recent[0]) if direction == "buy" \
+            else bool(valid_recent[-1] < 0 and valid_recent[-1] < valid_recent[0])
+    cond1 = bool(cond1_structure and cond1_1h_turn)
+
+    # ②4HMAに対する1HMAの収束→拡散(直近20本(1H)以内に発火したか)
+    trig, trig_dir = compute_ma_reversal_triggers(ds, 0.002, 0.005, 3)
+    want_dir = "buy" if direction == "buy" else "sell"
+    recent_trig = trig[-20:]
+    recent_trig_dir = trig_dir[-20:]
+    cond2 = bool(np.any(recent_trig & (recent_trig_dir == want_dir)))
+
+    # ③④節目サポート(直近4H足が水平線/4H-EMA80に接触しているか)
+    near_level, near_ema80, in_fib = compute_hit_arrays(ds, tol_pct)
+    cond3 = bool(near_level[-1])
+    cond4 = bool(near_ema80[-1])
+
+    # ⑤近くに日足レベルの抵抗勢力がいない
+    d_levels_map = compute_daily_levels(ds)
+    last_daily_t = daily.index[-1]
+    d_levels = d_levels_map.get(last_daily_t, [])
+    target_dist = atr14_h4 * target_atr_mult
+    if direction == "buy":
+        target_price = close + target_dist
+        blocking = [round(float(lv), 5) for lv in d_levels if close < lv <= target_price]
+    else:
+        target_price = close - target_dist
+        blocking = [round(float(lv), 5) for lv in d_levels if target_price <= lv < close]
+    cond5 = len(blocking) == 0
+
+    score = int(cond1) + int(cond2) + int(cond3) + int(cond4) + int(cond5)
+    return {
+        "score": score, "max": 5, "direction": direction,
+        "detail": {
+            "①4H構造+1H転換": cond1,
+            "②MA収束拡散": cond2,
+            "③水平線サポート": cond3,
+            "④4H-MAサポート": cond4,
+            "⑤抵抗勢力なし": cond5,
+        },
+        "blocking_daily_levels": blocking,
+    }
