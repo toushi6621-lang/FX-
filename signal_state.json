@@ -20,10 +20,10 @@
     "fractal_rr": null,
     "fractal_quality": null,
     "overheat": false,
-    "trend": "up",
+    "trend": "down",
     "close": 1.33919,
     "five_score": "1/5",
-    "five_dir": "buy",
+    "five_dir": "sell",
     "gapfill_valid": false,
     "gapfill_dir": "buy"
   },
