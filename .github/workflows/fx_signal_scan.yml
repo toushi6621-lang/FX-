@@ -20,13 +20,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 日本時間(JST=UTC+9)の土曜0時〜月曜8時 = UTC金曜15時〜日曜23時 はFX市場が
+      # 閉まっている週末(+月曜朝の様子見時間)なのでスキャンをスキップする
+      - name: Check if JST weekend
+        id: weekend_check
+        run: |
+          WD=$(date -u +%u)   # 1=月 ... 7=日
+          HOUR=$(date -u +%H)
+          SKIP=false
+          if [ "$WD" = "5" ] && [ "$HOUR" -ge 15 ]; then SKIP=true; fi
+          if [ "$WD" = "6" ]; then SKIP=true; fi
+          if [ "$WD" = "7" ] && [ "$HOUR" -lt 23 ]; then SKIP=true; fi
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-python@v5
+        if: steps.weekend_check.outputs.skip != 'true'
         with:
           python-version: "3.11"
 
       - run: pip install -q -r requirements.txt
+        if: steps.weekend_check.outputs.skip != 'true'
 
       - name: Run signal scan
+        if: steps.weekend_check.outputs.skip != 'true'
         env:
           PYTHONIOENCODING: utf-8
         run: |
@@ -36,6 +52,7 @@ jobs:
           } > latest_signal.txt
 
       - name: Commit and push result
+        if: steps.weekend_check.outputs.skip != 'true'
         run: |
           git config user.name "fx-signal-bot"
           git config user.email "actions@github.com"
