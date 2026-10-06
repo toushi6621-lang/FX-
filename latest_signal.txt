@@ -1,4 +1,4 @@
-=== FX Signal Scan: 2026-10-06T04:13:48Z UTC ===
+=== FX Signal Scan: 2026-10-06T05:12:32Z UTC ===
 === 全26銘柄中 26銘柄 分析成功 / 0銘柄 エラー ===
 EURUSD[down]: 過熱警告/5点スコア2/5(sell)
 GBPUSD[down]: 5点スコア1/5(sell)
@@ -21,8 +21,8 @@ GBPCAD[up]: ARMED/5点スコア2/5(buy)
 AUDCAD[up]: ARMED/5点スコア1/5(buy)
 NZDCAD[down]: 5点スコア1/5(sell)
 CADCHF[up]: 5点スコア1/5(buy)
-GOLD[down]: 過熱警告/5点スコア1/5(sell)
-SILVER[down]: フラクタルNL発火(fractal_topping(sell),RR=2.89,②高優位性(押し安値を既に割っている))/過熱警告/5点スコア2/5(sell)
+GOLD[down]: 過熱警告/5点スコア2/5(sell)
+SILVER[down]: フラクタルNL発火(fractal_topping(sell),RR=2.89,②高優位性(押し安値を既に割っている))/過熱警告/5点スコア1/5(sell)
 WTI原油[up]: 過熱警告/5点スコア1/5(buy)
-日経225[up]: 過熱警告/5点スコア2/5(buy)
-NASDAQ100[up]: フラクタルNL発火(fractal_bottoming(buy),RR=1.26,②高優位性(戻り高値を既に超えている))/過熱警告/5点スコア2/5(buy)
+日経225[up]: 乖離埋め候補(sell)/5点スコア2/5(buy)
+NASDAQ100[up]: 過熱警告/5点スコア2/5(buy)
