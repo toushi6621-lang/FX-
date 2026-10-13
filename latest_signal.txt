@@ -1,4 +1,4 @@
-=== FX Signal Scan: 2026-10-13T21:21:48Z UTC ===
+=== FX Signal Scan: 2026-10-13T22:20:44Z UTC ===
 === 全26銘柄中 26銘柄 分析成功 / 0銘柄 エラー ===
 EURUSD[down]: 乖離埋め候補(buy)/5点スコア1/5(sell)
 GBPUSD[down]: ARMED/5点スコア2/5(sell)
@@ -13,13 +13,13 @@ GBPAUD[up]: ARMED/5点スコア2/5(buy)
 GBPNZD[up]: フラクタルNL発火(fractal_topping(sell),RR=1.35,②高優位性(押し安値を既に割っている))/5点スコア2/5(buy)
 GBPCHF[up]: ARMED/フラクタルNL発火(fractal_bottoming(buy),RR=0.17,②高優位性(戻り高値を既に超えている))/5点スコア2/5(buy)
 AUDNZD[up]: ARMED/5点スコア1/5(buy)
-AUDCHF[up]: ARMED/フラクタルNL発火(fractal_topping(sell),RR=10.09,②高優位性(押し安値を既に割っている))/5点スコア2/5(buy)
+AUDCHF[up]: ARMED/フラクタルNL発火(fractal_topping(sell),RR=10.09,②高優位性(押し安値を既に割っている))/5点スコア3/5(buy)
 NZDCHF[down]: ARMED/5点スコア2/5(sell)
 USDCAD[up]: フラクタルNL発火(fractal_topping(sell),RR=1.64,①低優位性(押し安値をまだ割っていない))/5点スコア2/5(buy)
 EURCAD[down]: 5点スコア3/5(sell)
 GBPCAD[up]: ARMED/5点スコア2/5(buy)
-AUDCAD[up]: ARMED/5点スコア2/5(buy)
-NZDCAD[down]: ARMED/5点スコア2/5(sell)
+AUDCAD[up]: ARMED/フラクタルNL発火(fractal_topping(sell),RR=0.05,②高優位性(押し安値を既に割っている))/5点スコア2/5(buy)
+NZDCAD[down]: ARMED/フラクタルNL発火(fractal_topping(sell),RR=1.2,①低優位性(押し安値をまだ割っていない))/5点スコア2/5(sell)
 CADCHF[up]: ARMED/5点スコア1/5(buy)
 GOLD[down]: ARMED/過熱警告/5点スコア1/5(sell)
 SILVER[down]: 乖離埋め候補(buy)/5点スコア1/5(sell)
